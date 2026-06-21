@@ -94,6 +94,7 @@ export default function ChatList() {
         setIsNewChatModalOpen(false);
         setGroupName("");
         setSelectedParticipants([]);
+        setChats(prev => [newGroup, ...prev]); // Add to sidebar immediately
         router.push(`/chat/${newGroup._id}`);
       }
     } catch (error) {
@@ -114,6 +115,12 @@ export default function ChatList() {
       if (res.ok) {
         const chat = await res.json();
         setIsNewChatModalOpen(false);
+        setChats(prev => {
+          if (!prev.find(c => c._id === chat._id)) {
+            return [chat, ...prev]; // Add to sidebar if not exists
+          }
+          return prev;
+        });
         router.push(`/chat/${chat._id}`);
       }
     } catch (error) {
