@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 interface CallModalProps {
@@ -19,6 +19,7 @@ interface CallModalProps {
   isMicOn: boolean;
   isVideoOn: boolean;
   isCaller: boolean;
+  callType: 'audio' | 'video';
 }
 
 export default function CallModal({
@@ -35,7 +36,8 @@ export default function CallModal({
   toggleVideo,
   isMicOn,
   isVideoOn,
-  isCaller
+  isCaller,
+  callType
 }: CallModalProps) {
   
   // If we are neither calling nor receiving, don't show the modal
@@ -60,25 +62,35 @@ export default function CallModal({
       {/* Videos Container */}
       <div className="relative w-full max-w-4xl h-[70vh] flex items-center justify-center p-4">
         
-        {/* Partner Video (Main) */}
+        {/* Partner Video/Audio (Main) */}
         {callAccepted && (
           <video 
             playsInline 
             ref={partnerVideoRef} 
             autoPlay 
-            className="w-full h-full object-cover rounded-2xl bg-gray-900 shadow-2xl border border-gray-800"
+            className={`w-full h-full object-cover rounded-2xl bg-gray-900 shadow-2xl border border-gray-800 ${callType === 'audio' ? 'hidden' : ''}`}
           />
         )}
 
-        {/* User Video (Small Picture-in-Picture) */}
+        {/* User Video/Audio */}
         {stream && (
           <video 
             playsInline 
             muted 
             ref={userVideoRef} 
             autoPlay 
-            className={`absolute bottom-8 right-8 object-cover rounded-xl shadow-lg border-2 border-green-500 bg-gray-800 transition-all ${callAccepted ? 'w-32 h-48' : 'w-full h-full max-w-2xl max-h-[60vh]'}`}
+            className={`absolute bottom-8 right-8 object-cover rounded-xl shadow-lg border-2 border-green-500 bg-gray-800 transition-all ${callType === 'audio' ? 'hidden' : (callAccepted ? 'w-32 h-48' : 'w-full h-full max-w-2xl max-h-[60vh]')}`}
           />
+        )}
+
+        {/* Audio Call UI Placeholder */}
+        {callType === 'audio' && (
+          <div className="flex flex-col items-center justify-center">
+             <div className="w-32 h-32 bg-gray-700 rounded-full flex items-center justify-center mb-6 shadow-xl border-4 border-green-500">
+                <Phone className="w-16 h-16 text-white" />
+             </div>
+             {callAccepted && <p className="text-white text-lg">In progress...</p>}
+          </div>
         )}
       </div>
 
@@ -90,7 +102,7 @@ export default function CallModal({
             onClick={acceptCall}
             className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105"
           >
-            <Video className="w-8 h-8" />
+            {callType === 'video' ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
           </button>
         )}
 
@@ -111,12 +123,14 @@ export default function CallModal({
               <PhoneOff className="w-8 h-8" />
             </button>
 
-            <button 
-              onClick={toggleVideo}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isVideoOn ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white text-black'}`}
-            >
-              {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-            </button>
+            {callType === 'video' && (
+              <button 
+                onClick={toggleVideo}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isVideoOn ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white text-black'}`}
+              >
+                {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+              </button>
+            )}
           </>
         )}
       </div>

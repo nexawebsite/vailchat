@@ -613,6 +613,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
         isMicOn={isMicOn}
         isVideoOn={isVideoOn}
         isCaller={isCaller}
+        callType={currentCallType}
       />
     </div>
   );

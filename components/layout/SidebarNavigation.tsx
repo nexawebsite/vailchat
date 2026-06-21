@@ -11,7 +11,6 @@ export default function SidebarNavigation() {
 
   const navItems = [
     { icon: MessageSquare, label: "Chats", path: "/chat" },
-    { icon: Phone, label: "Calls", path: "/calls" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
 
