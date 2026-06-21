@@ -21,7 +21,6 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupName, setNewGroupName] = useState("");
   const { initiateCall } = useCall();
 
   useEffect(() => {
