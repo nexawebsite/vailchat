@@ -29,7 +29,34 @@ exports.register = async (req, res) => {
 
     await newUser.save();
 
-    res.status(201).json({ message: 'Usajili umekamilika kikamilifu!' });
+    // Generate Token for auto-login
+    const payload = {
+      user: {
+        id: newUser.id,
+        username: newUser.username
+      }
+    };
+
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'secretkey_vailnet',
+      { expiresIn: '7d' },
+      (err, token) => {
+        if (err) throw err;
+        res.status(201).json({
+          message: 'Usajili umekamilika kikamilifu!',
+          token,
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            phoneNumber: newUser.phoneNumber,
+            avatar: newUser.avatar,
+            wallpaper: newUser.wallpaper,
+            contacts: newUser.contacts
+          }
+        });
+      }
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server Error' });

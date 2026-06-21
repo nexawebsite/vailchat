@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function SignupPage() {
   const [username, setUsername] = useState('');
@@ -12,6 +13,7 @@ export default function SignupPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +35,19 @@ export default function SignupPage() {
         throw new Error(data.message || 'Hitilafu imetokea wakati wa kujisajili');
       }
 
-      setSuccess('Usajili umekamilika! Unaweza kuingia sasa.');
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
+      setSuccess('Usajili umekamilika! Unaingia kwenye mfumo...');
+      
+      // Auto-login since backend now returns token and user
+      if (data.token && data.user) {
+        login(data.user, data.token);
+        setTimeout(() => {
+          router.push('/');
+        }, 1000);
+      } else {
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
