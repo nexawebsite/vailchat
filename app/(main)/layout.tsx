@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { CallProvider } from "@/lib/CallContext";
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const router = useRouter();
@@ -24,11 +26,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <SidebarNavigation />
-      <main className="flex-1 flex overflow-hidden">
-        {children}
-      </main>
-    </div>
+    <CallProvider>
+      <div className="flex h-screen bg-background text-foreground overflow-hidden">
+        <SidebarNavigation />
+        <main className="flex-1 flex overflow-hidden">
+          {children}
+        </main>
+      </div>
+    </CallProvider>
   );
 }
