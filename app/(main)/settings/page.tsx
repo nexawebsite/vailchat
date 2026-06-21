@@ -142,16 +142,26 @@ export default function SettingsPage() {
 
         {/* Other settings stubs */}
         <div className="bg-white dark:bg-[#09090b] border border-border rounded-2xl overflow-hidden">
-          <button className="w-full flex items-center gap-4 p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors">
+          <button 
+            onClick={() => alert("Sehemu ya Notifications inakuja hivi karibuni!")}
+            className="w-full flex items-center gap-4 p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors"
+          >
             <Bell className="w-5 h-5 text-gray-500" />
             <span className="font-medium">Notifications</span>
           </button>
-          <button className="w-full flex items-center gap-4 p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors">
+          <button 
+            onClick={() => alert("Sehemu ya Privacy & Security inakuja hivi karibuni!")}
+            className="w-full flex items-center gap-4 p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors"
+          >
             <Shield className="w-5 h-5 text-gray-500" />
             <span className="font-medium">Privacy & Security</span>
           </button>
-          <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors text-red-500">
-            <span className="font-medium ml-9">Log Out</span>
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-[#27272a] transition-colors text-red-500"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Log Out</span>
           </button>
         </div>
       </div>

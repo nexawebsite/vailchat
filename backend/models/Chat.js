@@ -5,6 +5,7 @@ const chatSchema = new mongoose.Schema({
   groupName: { type: String, default: '' },
   groupAvatar: { type: String, default: '' },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  groupAdmins: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // New field for admins
   lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
 }, { timestamps: true });
 

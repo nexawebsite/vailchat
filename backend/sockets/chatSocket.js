@@ -16,28 +16,33 @@ module.exports = (io) => {
       io.emit('user_online', userId);
     });
 
-    // 2. Real-time Text Messaging
+    // Join a specific chat room
+    socket.on('join_chat', (chatId) => {
+      socket.join(chatId);
+      console.log(`User joined chat room: ${chatId}`);
+    });
+
+    // 2. Real-time Text Messaging (Room Based)
     socket.on('send_message', async (data) => {
       try {
-        const { senderId, receiverId, content, type } = data;
+        const { senderId, chatId, content, type } = data;
         
         // Save to DB
         const newMessage = new Message({
           senderId,
-          receiverId,
+          chatId,
           content,
           type
         });
         await newMessage.save();
 
-        // Send to receiver if online
-        const receiverSocketId = connectedUsers.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit('receive_message', newMessage);
-        }
+        const fullMessage = await Message.findById(newMessage._id).populate("senderId", "username avatar phoneNumber");
+
+        // Broadcast to the chat room
+        socket.to(chatId).emit('receive_message', fullMessage);
 
         // Send confirmation back to sender
-        socket.emit('message_sent', newMessage);
+        socket.emit('message_sent', fullMessage);
       } catch (error) {
         console.error('Error sending message:', error);
       }

@@ -2,15 +2,11 @@ const Message = require('../models/Message');
 
 exports.getMessages = async (req, res) => {
   try {
-    const { userId, otherUserId } = req.params;
+    const { chatId } = req.params;
 
-    // Find messages where sender is userId and receiver is otherUserId OR vice versa
-    const messages = await Message.find({
-      $or: [
-        { senderId: userId, receiverId: otherUserId },
-        { senderId: otherUserId, receiverId: userId }
-      ]
-    }).sort({ createdAt: 1 }); // Sort by chronological order
+    const messages = await Message.find({ chatId })
+      .populate("senderId", "username avatar phoneNumber")
+      .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
   } catch (error) {

@@ -2,28 +2,34 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Users as UsersIcon, X, Check } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Search, Users as UsersIcon, X, Check, MessageCirclePlus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 
 export default function ChatList() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Group creation state
+  // Modals state
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  
+  // Group state
   const [groupName, setGroupName] = useState("");
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // Users state
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchChats = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        // Hapa tunavuta chats (zikiwemo groups) badala ya users pekee
         const res = await fetch(`${apiUrl}/api/chats/${user?.id}`);
         if (res.ok) {
           const data = await res.json();
@@ -36,14 +42,6 @@ export default function ChatList() {
       }
     };
 
-    if (user) {
-      fetchChats();
-    }
-  }, [user]);
-
-  // Fallback kama hakuna chats, tuweze kutafuta users wote ili kuanzisha chat mpya
-  const [allUsers, setAllUsers] = useState<any[]>([]);
-  useEffect(() => {
     const fetchUsers = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -54,7 +52,11 @@ export default function ChatList() {
         }
       } catch (error) {}
     };
-    if (user) fetchUsers();
+
+    if (user) {
+      fetchChats();
+      fetchUsers();
+    }
   }, [user]);
 
   const toggleParticipant = (id: string) => {
@@ -70,9 +72,7 @@ export default function ChatList() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const res = await fetch(`${apiUrl}/api/chats/group`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           groupName,
           participants: selectedParticipants,
@@ -81,11 +81,12 @@ export default function ChatList() {
       });
       
       if (res.ok) {
+        const newGroup = await res.json();
         setIsGroupModalOpen(false);
+        setIsNewChatModalOpen(false);
         setGroupName("");
         setSelectedParticipants([]);
-        // Optional: you could refresh chats here by calling fetchChats again if it were broken out,
-        // but it will reload when user toggles or changes context.
+        router.push(`/chat/${newGroup._id}`);
       }
     } catch (error) {
       console.error("Error creating group", error);
@@ -94,7 +95,38 @@ export default function ChatList() {
     }
   };
 
-  const filteredUsers = allUsers.filter(u => 
+  const handleAccessChat = async (otherUserId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${apiUrl}/api/chats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, otherUserId })
+      });
+      if (res.ok) {
+        const chat = await res.json();
+        setIsNewChatModalOpen(false);
+        router.push(`/chat/${chat._id}`);
+      }
+    } catch (error) {
+      console.error("Error accessing chat:", error);
+    }
+  };
+
+  // Filter existing chats for sidebar
+  const filteredChats = chats.filter((chat) => {
+    if (chat.isGroup) {
+      return chat.groupName.toLowerCase().includes(searchQuery.toLowerCase());
+    } else {
+      const otherUser = chat.participants.find((p: any) => p._id !== user?.id);
+      const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser?.phoneNumber);
+      const displayName = savedContact ? savedContact.name : (otherUser?.phoneNumber || otherUser?.username || "");
+      return displayName.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+  });
+
+  // Filter all users for new chat modal
+  const searchUsers = allUsers.filter(u => 
     u.phoneNumber.includes(searchQuery) || 
     u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user?.contacts?.some((c: any) => c.phoneNumber === u.phoneNumber && c.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -102,47 +134,61 @@ export default function ChatList() {
 
   return (
     <>
-      <div className="p-4 border-b border-border flex justify-between items-center">
+      <div className="p-4 border-b border-border flex justify-between items-center bg-white dark:bg-[#09090b]">
         <h2 className="text-2xl font-bold tracking-tight">Chats</h2>
         <button 
-          className="p-2 bg-green-500/10 text-green-500 rounded-full hover:bg-green-500/20" 
-          title="Tengeneza Group"
-          onClick={() => setIsGroupModalOpen(true)}
+          className="p-2 bg-green-500/10 text-green-500 rounded-full hover:bg-green-500/20 transition-colors" 
+          title="New Chat"
+          onClick={() => {
+            setSearchQuery("");
+            setIsNewChatModalOpen(true);
+          }}
         >
-          <UsersIcon className="w-5 h-5" />
+          <MessageCirclePlus className="w-5 h-5" />
         </button>
       </div>
-      <div className="p-4 border-b border-border">
+
+      <div className="p-4 border-b border-border bg-white dark:bg-[#09090b]">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Tafuta namba au jina..."
+            placeholder="Tafuta chati..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-100 dark:bg-[#27272a] rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-green-500 transition-all"
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
+
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 bg-white dark:bg-[#09090b]">
         {loading ? (
           <p className="text-center text-gray-500 mt-4">Inatafuta...</p>
-        ) : filteredUsers.length === 0 ? (
-          <p className="text-center text-gray-500 mt-4">Hakuna watumiaji waliopatikana</p>
+        ) : filteredChats.length === 0 ? (
+          <p className="text-center text-gray-500 mt-4">Hakuna chati. Bonyeza kitufe hapo juu kuanza.</p>
         ) : (
-          filteredUsers.map((otherUser) => {
-            const isActive = pathname === `/chat/${otherUser._id}`;
-            const avatar = otherUser.avatar || "https://i.pravatar.cc/150";
+          filteredChats.map((chat) => {
+            const isActive = pathname === `/chat/${chat._id}`;
+            let avatar = "https://i.pravatar.cc/150";
+            let displayName = "Unknown";
+            let subText = chat.lastMessage?.content || "Anza kuchat...";
             
-            // Check if saved in contacts
-            const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser.phoneNumber);
-            const displayName = savedContact ? savedContact.name : otherUser.phoneNumber;
-            const subText = savedContact ? `~ ${otherUser.username}` : "Bofya kuanza kuchat";
+            if (chat.isGroup) {
+              avatar = chat.groupAvatar || "https://ui-avatars.com/api/?name=Group&background=22c55e&color=fff";
+              displayName = chat.groupName;
+            } else {
+              const otherUser = chat.participants.find((p: any) => p._id !== user?.id);
+              if (otherUser) {
+                avatar = otherUser.avatar || "https://i.pravatar.cc/150";
+                const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser.phoneNumber);
+                displayName = savedContact ? savedContact.name : otherUser.phoneNumber;
+              }
+            }
 
             return (
               <Link
-                key={otherUser._id}
-                href={`/chat/${otherUser._id}`}
+                key={chat._id}
+                href={`/chat/${chat._id}`}
                 className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
                   isActive ? "bg-green-500/10 dark:bg-green-500/20" : "hover:bg-gray-50 dark:hover:bg-[#27272a]"
                 }`}
@@ -162,12 +208,66 @@ export default function ChatList() {
         )}
       </div>
 
+      {/* New Chat Modal */}
+      {isNewChatModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#18181b] w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-gray-50 dark:bg-[#27272a]">
+              <h3 className="font-semibold text-lg">Anza Maongezi Mapya</h3>
+              <button onClick={() => setIsNewChatModalOpen(false)} className="p-1 hover:bg-gray-200 dark:hover:bg-[#3f3f46] rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-border">
+               <button 
+                onClick={() => {
+                  setIsNewChatModalOpen(false);
+                  setIsGroupModalOpen(true);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#27272a] transition-colors"
+               >
+                 <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white">
+                   <UsersIcon className="w-5 h-5" />
+                 </div>
+                 <span className="font-medium">Tengeneza Group Jipya</span>
+               </button>
+            </div>
+
+            <div className="p-2 overflow-y-auto flex-1">
+              <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Watu Wenye Vailnet</p>
+              {searchUsers.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">Wewe ndio mtumiaji pekee wa Vailnet kwa sasa. Tafadhali fungua incognito na usajili akaunti nyingine (namba nyingine) ili uweze kuchat na mtu!</p>
+              ) : (
+                searchUsers.map((u) => {
+                  const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === u.phoneNumber);
+                  const displayName = savedContact ? savedContact.name : u.phoneNumber;
+                  return (
+                    <div 
+                      key={u._id} 
+                      onClick={() => handleAccessChat(u._id)}
+                      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272a] transition-all"
+                    >
+                      <img src={u.avatar || "https://i.pravatar.cc/150"} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{displayName}</p>
+                        <p className="text-xs text-gray-500">~ {u.username}</p>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Group Creation Modal */}
       {isGroupModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-[#18181b] w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-border flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Tengeneza Group Jipya</h3>
+              <h3 className="font-semibold text-lg">Tengeneza Group</h3>
               <button onClick={() => setIsGroupModalOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded-full">
                 <X className="w-5 h-5" />
               </button>
@@ -180,7 +280,7 @@ export default function ChatList() {
                   type="text" 
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="Andika jina la group..."
+                  placeholder="Mfano: Familia, Kazini..."
                   className="w-full bg-gray-100 dark:bg-[#27272a] rounded-xl py-2 px-3 outline-none focus:ring-2 focus:ring-green-500 transition-all"
                 />
               </div>
@@ -188,23 +288,29 @@ export default function ChatList() {
               <div>
                 <label className="block text-sm font-medium mb-2">Chagua Wanakikundi</label>
                 <div className="space-y-2">
-                  {allUsers.map((u) => {
-                    const isSelected = selectedParticipants.includes(u._id);
-                    return (
-                      <div 
-                        key={u._id} 
-                        onClick={() => toggleParticipant(u._id)}
-                        className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-green-500 bg-green-500/10' : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#27272a]'}`}
-                      >
-                        <img src={u.avatar || "https://i.pravatar.cc/150"} alt={u.username} className="w-10 h-10 rounded-full object-cover" />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{u.username}</p>
-                          <p className="text-xs text-gray-500">{u.phoneNumber}</p>
+                  {allUsers.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">Wewe ndio mtumiaji pekee wa Vailnet kwa sasa. Huwezi kutengeneza group peke yako! Tafadhali fungua incognito na usajili akaunti nyingine ili kuweza kutengeneza group.</p>
+                  ) : (
+                    allUsers.map((u) => {
+                      const isSelected = selectedParticipants.includes(u._id);
+                      const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === u.phoneNumber);
+                      const displayName = savedContact ? savedContact.name : u.phoneNumber;
+                      return (
+                        <div 
+                          key={u._id} 
+                          onClick={() => toggleParticipant(u._id)}
+                          className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-green-500 bg-green-500/10' : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#27272a]'}`}
+                        >
+                          <img src={u.avatar || "https://i.pravatar.cc/150"} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{displayName}</p>
+                            <p className="text-xs text-gray-500">~ {u.username}</p>
+                          </div>
+                          {isSelected && <Check className="w-5 h-5 text-green-500" />}
                         </div>
-                        {isSelected && <Check className="w-5 h-5 text-green-500" />}
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </div>
