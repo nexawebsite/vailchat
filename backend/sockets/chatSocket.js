@@ -108,7 +108,22 @@ module.exports = (io) => {
       }
     });
 
-    // 4. Handle Disconnect
+    // 4. New Chat/Group Created
+    socket.on('new_chat_created', (data) => {
+      const { chat, participants } = data;
+      
+      if (participants && Array.isArray(participants)) {
+        participants.forEach(userId => {
+          // Send to all participants except the sender (who already added it)
+          const receiverSocketId = connectedUsers.get(userId.toString());
+          if (receiverSocketId && receiverSocketId !== socket.id) {
+            io.to(receiverSocketId).emit('chat_added', chat);
+          }
+        });
+      }
+    });
+
+    // 5. Handle Disconnect
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
       

@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 export default function ChatList() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, socket } = useAuth();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,6 +59,24 @@ export default function ChatList() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleChatAdded = (chat: any) => {
+      setChats(prev => {
+        if (!prev.find(c => c._id === chat._id)) {
+          return [chat, ...prev];
+        }
+        return prev;
+      });
+    };
+
+    socket.on('chat_added', handleChatAdded);
+    return () => {
+      socket.off('chat_added', handleChatAdded);
+    };
+  }, [socket]);
+
   const toggleParticipant = (id: string) => {
     setSelectedParticipants(prev => 
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
@@ -95,6 +113,15 @@ export default function ChatList() {
         setGroupName("");
         setSelectedParticipants([]);
         setChats(prev => [newGroup, ...prev]); // Add to sidebar immediately
+        
+        // Notify other participants via socket
+        if (socket) {
+          socket.emit('new_chat_created', {
+            chat: newGroup,
+            participants: newGroup.participants
+          });
+        }
+        
         router.push(`/chat/${newGroup._id}`);
       }
     } catch (error) {
@@ -121,6 +148,15 @@ export default function ChatList() {
           }
           return prev;
         });
+
+        // Notify other participant via socket
+        if (socket) {
+          socket.emit('new_chat_created', {
+            chat,
+            participants: chat.participants
+          });
+        }
+
         router.push(`/chat/${chat._id}`);
       }
     } catch (error) {
