@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Chat, Message, User } from "@/lib/types";
-import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check } from "lucide-react";
+import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
+import CallModal from "./CallModal";
 
 interface ChatAreaProps {
   chatId: string;
@@ -20,6 +22,23 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+
+  // WebRTC States
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [receivingCall, setReceivingCall] = useState(false);
+  const [caller, setCaller] = useState("");
+  const [callerName, setCallerName] = useState("");
+  const [callerSignal, setCallerSignal] = useState<any>(null);
+  const [callAccepted, setCallAccepted] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isCaller, setIsCaller] = useState(false);
+  const [currentCallType, setCurrentCallType] = useState<"video" | "audio">("video");
+
+  const userVideoRef = useRef<HTMLVideoElement>(null);
+  const partnerVideoRef = useRef<HTMLVideoElement>(null);
+  const connectionRef = useRef<any>(null);
 
   useEffect(() => {
     // Fetch Chat Info
@@ -50,9 +69,19 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
             senderName: m.senderId?.username || "Unknown",
             type: m.type,
             content: m.content,
+            status: m.status || 'sent',
             timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }));
           setMessages(formatted);
+
+          // Mark unread messages as read
+          const unreadIds = data
+            .filter((m: any) => (m.senderId?._id || m.senderId) !== user.id && m.status !== 'read')
+            .map((m: any) => m._id);
+            
+          if (unreadIds.length > 0 && socket) {
+            socket.emit('update_message_status', { messageIds: unreadIds, status: 'read', chatId });
+          }
         }
       } catch (error) {
         console.error("Error fetching chat data:", error);
@@ -77,21 +106,60 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
           senderName: msg.senderId?.username || "Unknown",
           type: msg.type || "text",
           content: msg.content,
+          status: msg.status || 'sent',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }]);
+
+        // Send read receipt back if chat is open
+        if ((msg.senderId?._id || msg.senderId) !== user?.id) {
+          socket.emit('update_message_status', { messageIds: [msg._id], status: 'read', chatId });
+        }
       }
     };
 
     const handleMessageSent = (msg: any) => {};
 
+    const handleMessageStatusUpdated = (data: any) => {
+      if (data.chatId === chatId) {
+        setMessages((prev) => prev.map((m) => 
+          data.messageIds.includes(m.id) ? { ...m, status: data.status } : m
+        ));
+      }
+    };
+
+    // WebRTC Listeners
+    const handleCallIncoming = (data: any) => {
+      setReceivingCall(true);
+      setCaller(data.from);
+      setCallerName(data.name);
+      setCallerSignal(data.signal);
+      setCurrentCallType(data.callType || "video");
+    };
+
+    const handleCallEnded = () => {
+      setCallEnded(true);
+      setReceivingCall(false);
+      setIsCaller(false);
+      setCallAccepted(false);
+      if (connectionRef.current) connectionRef.current.destroy();
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('message_sent', handleMessageSent);
+    socket.on('message_status_updated', handleMessageStatusUpdated);
+    socket.on('call_incoming', handleCallIncoming);
+    socket.on('call_ended', handleCallEnded);
 
     return () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('message_sent', handleMessageSent);
+      socket.off('message_status_updated', handleMessageStatusUpdated);
+      socket.off('call_incoming', handleCallIncoming);
+      socket.off('call_ended', handleCallEnded);
     };
-  }, [socket, chatId]);
+  }, [socket, chatId, stream]);
 
   const handleSend = () => {
     if (!newMessage.trim() || !user) return;
@@ -114,6 +182,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
       senderName: user.username,
       type: "text",
       content: newMessage,
+      status: 'sent',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -162,6 +231,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
           senderName: user.username,
           type: fileType as any,
           content: data.url,
+          status: 'sent',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -208,6 +278,125 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     }
   };
 
+  // WebRTC Call Logic
+  const getMedia = async (video: boolean) => {
+    try {
+      const currentStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+      setStream(currentStream);
+      if (userVideoRef.current) {
+        userVideoRef.current.srcObject = currentStream;
+      }
+      return currentStream;
+    } catch (error) {
+      console.error("Error accessing media devices.", error);
+      alert("Please allow camera and microphone permissions to make calls.");
+      return null;
+    }
+  };
+
+  const callUser = async (callType: "video" | "audio") => {
+    if (isGroup) {
+      alert("Group calls are not yet supported in this version.");
+      return;
+    }
+    const Peer = (await import("simple-peer")).default;
+    const currentStream = await getMedia(callType === "video");
+    if (!currentStream) return;
+
+    setCurrentCallType(callType);
+    setIsCaller(true);
+    setCallEnded(false);
+    
+    // In a 1-on-1 chat, the other participant is userToCall
+    const userToCall = chatInfo.participants.find((p: any) => p._id !== user?.id)?._id;
+
+    const peer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream: currentStream
+    });
+
+    peer.on("signal", (data: any) => {
+      socket?.emit("call_user", {
+        userToCall,
+        signalData: data,
+        from: user?.id,
+        name: user?.username,
+        callType
+      });
+    });
+
+    peer.on("stream", (remoteStream: any) => {
+      if (partnerVideoRef.current) {
+        partnerVideoRef.current.srcObject = remoteStream;
+      }
+    });
+
+    socket?.on("call_accepted", (signal: any) => {
+      setCallAccepted(true);
+      peer.signal(signal);
+    });
+
+    connectionRef.current = peer;
+  };
+
+  const answerCall = async () => {
+    setCallAccepted(true);
+    const Peer = (await import("simple-peer")).default;
+    const currentStream = await getMedia(currentCallType === "video");
+    if (!currentStream) return;
+
+    const peer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream: currentStream
+    });
+
+    peer.on("signal", (data: any) => {
+      socket?.emit("answer_call", { signal: data, to: caller });
+    });
+
+    peer.on("stream", (remoteStream: any) => {
+      if (partnerVideoRef.current) {
+        partnerVideoRef.current.srcObject = remoteStream;
+      }
+    });
+
+    peer.signal(callerSignal);
+    connectionRef.current = peer;
+  };
+
+  const leaveCall = () => {
+    setCallEnded(true);
+    setIsCaller(false);
+    setReceivingCall(false);
+    setCallAccepted(false);
+    if (connectionRef.current) connectionRef.current.destroy();
+    
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    setStream(null);
+
+    const userToNotify = isCaller 
+      ? chatInfo?.participants.find((p: any) => p._id !== user?.id)?._id 
+      : caller;
+      
+    socket?.emit("end_call", { to: userToNotify });
+  };
+
+  const toggleMic = () => {
+    if (stream) {
+      stream.getAudioTracks()[0].enabled = !isMicOn;
+      setIsMicOn(!isMicOn);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (stream && currentCallType === "video") {
+      stream.getVideoTracks()[0].enabled = !isVideoOn;
+      setIsVideoOn(!isVideoOn);
+    }
+  };
+
   let name = "Loading...";
   let avatar = "https://i.pravatar.cc/150";
   let isGroup = false;
@@ -251,8 +440,8 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
           </div>
         </div>
         <div className="flex items-center gap-6 text-gray-500">
-          <button className="hover:text-primary transition-colors"><Phone className="w-5 h-5" /></button>
-          <button className="hover:text-primary transition-colors"><Video className="w-5 h-5" /></button>
+          <button onClick={() => callUser('audio')} className="hover:text-primary transition-colors"><Phone className="w-5 h-5" /></button>
+          <button onClick={() => callUser('video')} className="hover:text-primary transition-colors"><Video className="w-5 h-5" /></button>
           <button className="hover:text-primary transition-colors"><MoreVertical className="w-5 h-5" /></button>
         </div>
       </div>
@@ -287,7 +476,16 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                 {/* Fallback for old messages without type */}
                 {!msg.type && <p className="text-sm">{msg.content}</p>}
                 
-                <p className={`text-[10px] mt-1 opacity-70 ${isMe ? 'text-right' : 'text-left'}`}>{msg.timestamp}</p>
+                <div className={`flex items-center gap-1 mt-1 opacity-70 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  <p className="text-[10px]">{msg.timestamp}</p>
+                  {isMe && (
+                    <span className="ml-1 inline-flex items-center">
+                      {msg.status === 'sent' && <Check className="w-3 h-3 text-gray-500" />}
+                      {msg.status === 'delivered' && <CheckCheck className="w-3 h-3 text-gray-500" />}
+                      {msg.status === 'read' && <CheckCheck className="w-3 h-3 text-blue-500" />}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -398,6 +596,24 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
           </div>
         </div>
       )}
+
+      {/* WebRTC Call Modal */}
+      <CallModal 
+        isReceivingCall={receivingCall}
+        callerData={{ name: callerName }}
+        callAccepted={callAccepted}
+        callEnded={callEnded}
+        stream={stream}
+        userVideoRef={userVideoRef}
+        partnerVideoRef={partnerVideoRef}
+        acceptCall={answerCall}
+        endCall={leaveCall}
+        toggleMic={toggleMic}
+        toggleVideo={toggleVideo}
+        isMicOn={isMicOn}
+        isVideoOn={isVideoOn}
+        isCaller={isCaller}
+      />
     </div>
   );
 }

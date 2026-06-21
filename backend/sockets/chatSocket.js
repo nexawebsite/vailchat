@@ -48,6 +48,30 @@ module.exports = (io) => {
       }
     });
 
+    // 2.5 Message Status Updates (Delivered, Read)
+    socket.on('update_message_status', async (data) => {
+      try {
+        const { messageIds, status, chatId } = data; // status: 'delivered' | 'read'
+        
+        if (!messageIds || messageIds.length === 0) return;
+
+        // Update in DB
+        await Message.updateMany(
+          { _id: { $in: messageIds } },
+          { $set: { status: status } }
+        );
+
+        // Broadcast to chat room so sender sees the ticks change
+        socket.to(chatId).emit('message_status_updated', {
+          messageIds,
+          status,
+          chatId
+        });
+      } catch (error) {
+        console.error('Error updating message status:', error);
+      }
+    });
+
     // 3. WebRTC Signaling for Voice/Video Calls
     // Caller sends call request
     socket.on('call_user', (data) => {

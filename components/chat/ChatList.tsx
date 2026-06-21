@@ -66,7 +66,15 @@ export default function ChatList() {
   };
 
   const handleCreateGroup = async () => {
-    if (!groupName.trim() || selectedParticipants.length === 0 || !user) return;
+    if (!groupName.trim()) {
+      alert("Tafadhali andika jina la Group kwanza!");
+      return;
+    }
+    if (selectedParticipants.length === 0) {
+      alert("Tafadhali chagua angalau mtu mmoja wa kumuweka kwenye Group!");
+      return;
+    }
+    if (!user) return;
     setCreatingGroup(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';

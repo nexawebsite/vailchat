@@ -25,9 +25,10 @@ const messageSchema = new mongoose.Schema({
     enum: ['text', 'image', 'audio'],
     default: 'text'
   },
-  read: {
-    type: Boolean,
-    default: false
+  status: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent'
   }
 }, { timestamps: true });
 
