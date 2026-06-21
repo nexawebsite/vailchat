@@ -1,6 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+
+// Polyfill for simple-peer in Next.js
+if (typeof window !== 'undefined' && !window.process) {
+  window.process = { env: {} } as any;
+}
+
 import { useAuth } from './AuthContext';
 import CallModal from '@/components/chat/CallModal';
 
@@ -74,9 +80,26 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
         userVideoRef.current.srcObject = currentStream;
       }
       return currentStream;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error accessing media devices.", error);
-      alert("Please allow camera and microphone permissions to make calls.");
+      
+      // Fallback: If video fails (e.g. no camera), try audio only
+      if (video) {
+        try {
+          console.log("Trying audio only fallback...");
+          const audioStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+          setStream(audioStream);
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = audioStream;
+          }
+          alert("Kamera haijapatikana, tunatumia Sauti pekee (Audio fallback).");
+          return audioStream;
+        } catch (audioError) {
+          console.error("Audio fallback also failed", audioError);
+        }
+      }
+
+      alert("Tafadhali ruhusu matumizi ya Kamera na Maikrofoni (Microphone) kwenye browser yako ili kupiga simu.");
       return null;
     }
   };
