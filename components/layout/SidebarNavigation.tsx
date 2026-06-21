@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Phone, Settings, UserCircle } from "lucide-react";
-import { currentUser } from "@/lib/mockData";
+import { MessageSquare, Phone, Settings } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function SidebarNavigation() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const navItems = [
     { icon: MessageSquare, label: "Chats", path: "/chat" },
@@ -42,7 +43,7 @@ export default function SidebarNavigation() {
       <div className="mt-auto cursor-pointer hover:opacity-80 transition-opacity">
         <Link href="/settings" className="block relative">
           <img
-            src={currentUser.avatarUrl}
+            src={user?.avatar || "https://i.pravatar.cc/150"}
             alt="Profile"
             className="w-12 h-12 rounded-full border-2 border-border object-cover"
           />

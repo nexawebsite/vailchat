@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "A modern, premium messaging experience",
 };
 
+import { AuthProvider } from "@/lib/AuthContext";
+
 export default function RootLayout({
   children,
 }: {
@@ -15,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="sw" suppressHydrationWarning>
       <body className="antialiased min-h-screen">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            {children}
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

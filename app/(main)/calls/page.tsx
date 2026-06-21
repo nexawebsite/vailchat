@@ -1,61 +1,192 @@
-import { mockCalls, mockUsers, currentUser } from "@/lib/mockData";
-import { Phone, Video, PhoneMissed, Search } from "lucide-react";
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import Peer from 'simple-peer';
+import { Phone, Video, PhoneOff } from 'lucide-react';
 
 export default function CallsPage() {
+  const { user, socket } = useAuth();
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [receivingCall, setReceivingCall] = useState(false);
+  const [caller, setCaller] = useState('');
+  const [callerName, setCallerName] = useState('');
+  const [callerSignal, setCallerSignal] = useState<any>(null);
+  const [callAccepted, setCallAccepted] = useState(false);
+  const [idToCall, setIdToCall] = useState('');
+  const [callEnded, setCallEnded] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
+
+  const myVideo = useRef<HTMLVideoElement>(null);
+  const userVideo = useRef<HTMLVideoElement>(null);
+  const connectionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Get media permissions when the page loads
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((currentStream) => {
+        setStream(currentStream);
+        if (myVideo.current) {
+          myVideo.current.srcObject = currentStream;
+        }
+      })
+      .catch(err => console.log('Media access denied or not available', err));
+
+    if (socket) {
+      socket.on('call_incoming', (data: any) => {
+        setReceivingCall(true);
+        setCaller(data.from);
+        setCallerName(data.name);
+        setCallerSignal(data.signal);
+      });
+
+      socket.on('call_ended', () => {
+        setCallEnded(true);
+        if (connectionRef.current) connectionRef.current.destroy();
+        window.location.reload(); // Quick reset for the assignment
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('call_incoming');
+        socket.off('call_ended');
+      }
+    };
+  }, [socket]);
+
+  const callUser = (id: string) => {
+    setIsCalling(true);
+    const peer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream: stream!
+    });
+
+    peer.on('signal', (data) => {
+      socket?.emit('call_user', {
+        userToCall: id,
+        signalData: data,
+        from: user?.id,
+        name: user?.username,
+        callType: 'video'
+      });
+    });
+
+    peer.on('stream', (currentStream) => {
+      if (userVideo.current) {
+        userVideo.current.srcObject = currentStream;
+      }
+    });
+
+    socket?.on('call_accepted', (signal) => {
+      setCallAccepted(true);
+      peer.signal(signal);
+    });
+
+    connectionRef.current = peer;
+  };
+
+  const answerCall = () => {
+    setCallAccepted(true);
+    const peer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream: stream!
+    });
+
+    peer.on('signal', (data) => {
+      socket?.emit('answer_call', { signal: data, to: caller });
+    });
+
+    peer.on('stream', (currentStream) => {
+      if (userVideo.current) {
+        userVideo.current.srcObject = currentStream;
+      }
+    });
+
+    peer.signal(callerSignal);
+    connectionRef.current = peer;
+  };
+
+  const leaveCall = () => {
+    setCallEnded(true);
+    if (connectionRef.current) connectionRef.current.destroy();
+    
+    // Notify the other user
+    if (socket) {
+      socket.emit('end_call', { to: caller || idToCall });
+    }
+    
+    window.location.reload(); // Quick reset
+  };
+
   return (
-    <div className="flex h-full w-full">
-      {/* Sidebar for Call Logs */}
-      <div className="w-80 border-r border-border bg-background flex flex-col shrink-0">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-2xl font-bold mb-4 tracking-tight">Calls</h2>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search calls..."
-              className="w-full bg-gray-100 dark:bg-[#27272a] rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-            />
+    <div className="flex flex-col h-full bg-white dark:bg-[#09090b] p-6">
+      <h1 className="text-2xl font-bold mb-6">Video & Voice Calls</h1>
+      
+      <div className="flex flex-col md:flex-row gap-6 mb-8">
+        {/* My Video */}
+        <div className="flex-1 bg-black rounded-2xl overflow-hidden aspect-video relative">
+          {stream && (
+            <video playsInline muted ref={myVideo} autoPlay className="w-full h-full object-cover" />
+          )}
+          <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm backdrop-blur-md">
+            Wewe ({user?.username || 'Unknown'})
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {mockCalls.map((call) => {
-            const isCaller = call.callerId === currentUser.id;
-            const otherUserId = isCaller ? call.receiverId : call.callerId;
-            const otherUser = mockUsers.find(u => u.id === otherUserId);
-            
-            if (!otherUser) return null;
 
-            const isMissed = call.status === "missed";
-            const CallIcon = call.type === "video" ? Video : Phone;
-
-            return (
-              <div key={call.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-[#27272a] transition-all cursor-pointer">
-                <img src={otherUser.avatarUrl} alt={otherUser.username} className="w-12 h-12 rounded-full object-cover" />
-                <div className="flex-1 min-w-0">
-                  <h3 className={`font-semibold text-sm ${isMissed && !isCaller ? 'text-red-500' : ''}`}>{otherUser.username}</h3>
-                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                    {isMissed ? <PhoneMissed className="w-3 h-3 text-red-500" /> : <CallIcon className="w-3 h-3" />}
-                    <span>{call.timestamp}</span>
-                  </div>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-primary transition-colors">
-                  <CallIcon className="w-5 h-5" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+        {/* Other User Video */}
+        {callAccepted && !callEnded && (
+          <div className="flex-1 bg-black rounded-2xl overflow-hidden aspect-video relative">
+            <video playsInline ref={userVideo} autoPlay className="w-full h-full object-cover" />
+            <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm backdrop-blur-md">
+              {callerName || 'Mtu Mwingine'}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Main Area Empty State */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#f4f4f5] dark:bg-[#000000]">
-        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-          <Phone className="w-10 h-10 text-primary" />
+      <div className="flex flex-col items-center gap-6">
+        {/* Calling Controls */}
+        <div className="flex items-center gap-4 w-full max-w-md">
+          <input
+            type="text"
+            value={idToCall}
+            onChange={(e) => setIdToCall(e.target.value)}
+            placeholder="Weka ID ya mtumiaji kumpigia..."
+            className="flex-1 p-3 rounded-xl border bg-background"
+          />
+          <button 
+            onClick={() => callUser(idToCall)}
+            className="bg-primary text-white p-3 rounded-xl hover:bg-primary/90"
+          >
+            <Video className="w-5 h-5" />
+          </button>
         </div>
-        <h2 className="text-2xl font-bold mb-2">Call History</h2>
-        <p className="text-gray-500 max-w-sm">
-          Select a contact to view your call history or start a new call.
-        </p>
+
+        {/* Incoming Call Notification */}
+        {receivingCall && !callAccepted && (
+          <div className="bg-primary/10 border border-primary p-6 rounded-2xl flex flex-col items-center gap-4 w-full max-w-md">
+            <h3 className="text-lg font-semibold">{callerName} anapiga simu...</h3>
+            <button 
+              onClick={answerCall}
+              className="bg-green-500 text-white px-6 py-2 rounded-full font-medium hover:bg-green-600 transition-colors flex items-center gap-2"
+            >
+              <Phone className="w-4 h-4" /> Pokea Simu
+            </button>
+          </div>
+        )}
+
+        {/* End Call Button */}
+        {callAccepted && !callEnded && (
+          <button 
+            onClick={leaveCall}
+            className="bg-red-500 text-white px-8 py-3 rounded-full font-medium hover:bg-red-600 transition-colors flex items-center gap-2"
+          >
+            <PhoneOff className="w-5 h-5" /> Kata Simu
+          </button>
+        )}
       </div>
     </div>
   );
