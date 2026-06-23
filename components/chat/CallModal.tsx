@@ -72,15 +72,26 @@ export default function CallModal({
           />
         )}
 
-        {/* User Video/Audio */}
+        {/* User Video/Audio (Local Camera) */}
         {stream && (
           <video 
             playsInline 
             muted 
             ref={userVideoRef} 
             autoPlay 
-            className={`absolute bottom-8 right-8 object-cover rounded-xl shadow-lg border-2 border-green-500 bg-gray-800 transition-all ${callType === 'audio' ? 'hidden' : (callAccepted ? 'w-32 h-48' : 'w-full h-full max-w-2xl max-h-[60vh]')}`}
+            className={`absolute bottom-8 right-8 object-cover rounded-xl shadow-lg border-2 border-green-500 bg-gray-800 transition-all z-20 ${callType === 'audio' ? 'hidden' : (callAccepted ? 'w-32 h-48' : 'fixed inset-0 w-full h-full rounded-none border-none opacity-50 z-0')}`}
           />
+        )}
+
+        {/* Profile Picture of the Caller/Receiver before accepted */}
+        {!callAccepted && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+             <img 
+               src={callerData?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerData?.name || "User")}&background=random&color=fff`} 
+               className="w-32 h-32 rounded-full object-cover border-4 border-green-500 shadow-2xl animate-pulse"
+               alt={callerData?.name}
+             />
+          </div>
         )}
 
         {/* Audio Call UI Placeholder */}

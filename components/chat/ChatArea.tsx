@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Chat, Message, User } from "@/lib/types";
-import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
+import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck, Square } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { useCall } from "@/lib/CallContext";
+import EmojiPicker, { Theme } from "emoji-picker-react";
+import { useTheme } from "next-themes";
 
 interface ChatAreaProps {
   chatId: string;
@@ -22,6 +24,24 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const { initiateCall } = useCall();
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     // Fetch Chat Info
@@ -150,17 +170,8 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     setNewMessage("");
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const uploadAndSendMedia = async (file: File, fileType: string) => {
     if (!file || !user) return;
-
-    // Determine type
-    let fileType = 'text';
-    if (file.type.startsWith('image/')) fileType = 'image';
-    else if (file.type.startsWith('video/')) fileType = 'video';
-    else if (file.type.startsWith('audio/')) fileType = 'audio';
-    
-    // Upload to backend
     const formData = new FormData();
     formData.append('media', file);
 
@@ -173,7 +184,6 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
 
       const data = await res.json();
       if (res.ok && data.url) {
-        // Send via Socket
         if (socket) {
           socket.emit('send_message', {
             senderId: user.id,
@@ -183,7 +193,6 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
           });
         }
         
-        // Optimistic UI update
         const msg = {
           id: `msg_${Date.now()}`,
           chatId: chatId,
@@ -199,6 +208,53 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
       }
     } catch (error) {
       console.error("Upload failed", error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    let fileType = 'text';
+    if (file.type.startsWith('image/')) fileType = 'image';
+    else if (file.type.startsWith('video/')) fileType = 'video';
+    else if (file.type.startsWith('audio/')) fileType = 'audio';
+    
+    await uploadAndSendMedia(file, fileType);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+        await uploadAndSendMedia(file, 'audio');
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Tafadhali ruhusu matumizi ya maiki ili uweze kurekodi.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
 
@@ -260,13 +316,13 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     
     if (isGroup) {
       name = chatInfo.groupName;
-      avatar = chatInfo.groupAvatar || "https://ui-avatars.com/api/?name=Group&background=22c55e&color=fff";
+      avatar = chatInfo.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
     } else {
       const otherUser = chatInfo.participants.find((p: any) => p._id !== user?.id);
       if (otherUser) {
         const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser.phoneNumber);
         name = savedContact ? savedContact.name : otherUser.phoneNumber;
-        avatar = otherUser.avatar || "https://i.pravatar.cc/150";
+        avatar = otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
       }
     }
   }
@@ -299,7 +355,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f4f4f5] dark:bg-transparent" style={{ backgroundImage: "url('https://i.ibb.co/311W9jK/whatsapp-bg.png')", backgroundSize: "cover", backgroundBlendMode: "overlay" }}>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f4f4f5] dark:bg-[#0b141a]" style={{ backgroundImage: "url('https://i.ibb.co/311W9jK/whatsapp-bg.png')", backgroundSize: "cover", backgroundBlendMode: "overlay" }}>
         {messages.map((msg) => {
           const isMe = msg.senderId === user?.id;
           return (
@@ -345,11 +401,19 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-gray-100 dark:bg-[#202c33]">
+      <div className="p-4 bg-gray-100 dark:bg-[#202c33] relative">
+        {showEmojiPicker && (
+          <div className="absolute bottom-20 left-4 z-50 shadow-2xl" ref={emojiPickerRef}>
+            <EmojiPicker 
+              theme={resolvedTheme === 'dark' ? Theme.DARK : Theme.LIGHT} 
+              onEmojiClick={(emojiData) => setNewMessage(prev => prev + emojiData.emoji)} 
+            />
+          </div>
+        )}
         <div className="flex items-center gap-3 bg-white dark:bg-[#2a3942] rounded-full px-4 py-2 shadow-sm">
-          <button className="text-gray-500 hover:text-primary transition-colors"><Smile className="w-6 h-6" /></button>
+          <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-500 hover:text-green-500 transition-colors"><Smile className="w-6 h-6" /></button>
           
-          <label className="text-gray-500 hover:text-primary transition-colors cursor-pointer">
+          <label className="text-gray-500 hover:text-green-500 transition-colors cursor-pointer">
             <Paperclip className="w-5 h-5" />
             <input 
               type="file" 
@@ -364,15 +428,24 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Tuma ujumbe..."
-            className="flex-1 bg-transparent outline-none px-2 text-sm text-black dark:text-white"
+            placeholder={isRecording ? "Inarekodi..." : "Tuma ujumbe..."}
+            disabled={isRecording}
+            className="flex-1 bg-transparent outline-none px-2 text-sm text-black dark:text-white disabled:opacity-50"
           />
           {newMessage.trim() ? (
             <button onClick={handleSend} className="text-white bg-green-500 p-2 rounded-full hover:bg-green-600 transition-all">
               <Send className="w-4 h-4 ml-0.5" />
             </button>
           ) : (
-            <button className="text-white bg-green-500 p-2 rounded-full hover:bg-green-600 transition-all"><Mic className="w-4 h-4" /></button>
+            isRecording ? (
+              <button onClick={stopRecording} className="text-white bg-red-500 p-2 rounded-full hover:bg-red-600 transition-all animate-pulse">
+                <Square className="w-4 h-4" />
+              </button>
+            ) : (
+              <button onClick={startRecording} className="text-white bg-green-500 p-2 rounded-full hover:bg-green-600 transition-all">
+                <Mic className="w-4 h-4" />
+              </button>
+            )
           )}
         </div>
       </div>
@@ -428,7 +501,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                   return (
                     <div key={p._id} className="flex justify-between items-center group cursor-pointer hover:bg-gray-100 dark:hover:bg-[#202c33] p-2 rounded-lg transition-colors">
                       <div className="flex items-center gap-3">
-                        <img src={p.avatar || "https://i.pravatar.cc/150"} className="w-10 h-10 rounded-full" />
+                        <img src={p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`} className="w-10 h-10 rounded-full" />
                         <div>
                           <p className="font-medium text-sm">{displayName}</p>
                           {isUserAdmin && <p className="text-[10px] text-green-500 border border-green-500 rounded px-1 w-fit mt-0.5">Group Admin</p>}
