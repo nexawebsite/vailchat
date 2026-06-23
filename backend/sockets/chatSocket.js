@@ -72,6 +72,18 @@ module.exports = (io) => {
       }
     });
 
+    // 2.6 Delete Message
+    socket.on('delete_message', async (data) => {
+      try {
+        const { messageId, chatId } = data;
+        await Message.findByIdAndDelete(messageId);
+        // Broadcast deletion to both sender and receiver
+        io.to(chatId).emit('message_deleted', messageId);
+      } catch (error) {
+        console.error('Error deleting message:', error);
+      }
+    });
+
     // 3. WebRTC Signaling for Voice/Video Calls
     // Caller sends call request
     socket.on('call_user', (data) => {

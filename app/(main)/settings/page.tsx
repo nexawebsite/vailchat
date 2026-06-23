@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function SettingsPage() {
         });
         
         if (settingsRes.ok) {
-          // Ideally update AuthContext here, but for now we rely on re-login or manual state refresh
+          updateUser({ [type]: uploadData.url });
           alert(`Imefanikiwa! ${type === 'avatar' ? 'Picha ya Profile' : 'Background'} imebadilishwa.`);
         }
       }

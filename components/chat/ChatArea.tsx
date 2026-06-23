@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Chat, Message, User } from "@/lib/types";
-import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck, Square } from "lucide-react";
+import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck, Square, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { useCall } from "@/lib/CallContext";
@@ -130,14 +130,20 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
       }
     };
 
+    const handleMessageDeleted = (messageId: string) => {
+      setMessages((prev) => prev.filter(m => m.id !== messageId));
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('message_sent', handleMessageSent);
     socket.on('message_status_updated', handleMessageStatusUpdated);
+    socket.on('message_deleted', handleMessageDeleted);
 
     return () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('message_sent', handleMessageSent);
       socket.off('message_status_updated', handleMessageStatusUpdated);
+      socket.off('message_deleted', handleMessageDeleted);
     };
   }, [socket, chatId]);
 
@@ -258,6 +264,13 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     }
   };
 
+  const handleDeleteMessage = (messageId: string) => {
+    if (socket && window.confirm("Je, una uhakika unataka kufuta ujumbe huu?")) {
+      socket.emit('delete_message', { messageId, chatId, userId: user?.id });
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    }
+  };
+
   const updateGroupName = async () => {
     if (!newGroupName.trim() || !user) return;
     try {
@@ -359,7 +372,12 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
         {messages.map((msg) => {
           const isMe = msg.senderId === user?.id;
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex items-center group ${isMe ? 'justify-end' : 'justify-start'}`}>
+              {!isMe && (
+                <button onClick={() => handleDeleteMessage(msg.id)} className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-700 transition-opacity">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <div className={`max-w-[70%] px-4 py-2.5 shadow-sm ${
                 isMe ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white rounded-2xl rounded-tr-sm" : "bg-white dark:bg-[#202c33] text-black dark:text-white rounded-2xl rounded-tl-sm border border-border"
               }`}>
@@ -395,6 +413,11 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                   )}
                 </div>
               </div>
+              {isMe && (
+                <button onClick={() => handleDeleteMessage(msg.id)} className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-700 transition-opacity">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           );
         })}

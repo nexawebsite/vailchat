@@ -18,6 +18,7 @@ interface AuthContextType {
   socket: Socket | null;
   login: (userData: User, token: string) => void;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,8 +75,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (socket) socket.disconnect();
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updated = { ...user, ...userData };
+      setUser(updated);
+      localStorage.setItem('vailnet_user', JSON.stringify(updated));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, socket, login, logout }}>
+    <AuthContext.Provider value={{ user, token, socket, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
