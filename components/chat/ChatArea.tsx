@@ -387,10 +387,10 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                 )}
 
                 {msg.type === 'image' && (
-                  <img src={msg.content} alt="Image Attachment" className="rounded-xl max-w-full h-auto mb-2" />
+                  <img src={msg.content} alt="Image Attachment" className="rounded-xl max-w-[250px] sm:max-w-[320px] max-h-[350px] object-cover mb-2 border border-black/5 dark:border-white/5" />
                 )}
                 {msg.type === 'video' && (
-                  <video src={msg.content} controls className="rounded-xl max-w-full h-auto mb-2" />
+                  <video src={msg.content} controls className="rounded-xl max-w-[250px] sm:max-w-[320px] max-h-[350px] bg-black mb-2" />
                 )}
                 {msg.type === 'audio' && (
                   <audio src={msg.content} controls className="w-full mb-2" />

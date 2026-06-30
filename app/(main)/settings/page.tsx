@@ -88,7 +88,7 @@ export default function SettingsPage() {
         <div className="bg-white dark:bg-[#09090b] rounded-2xl p-6 border border-border flex items-center gap-6 mb-8">
           <div className="relative group cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
             <img 
-              src={user.avatar || "https://i.pravatar.cc/150"} 
+              src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || user?.phoneNumber || "User")}&background=10b981&color=fff`}
               alt="Profile" 
               className="w-24 h-24 rounded-full object-cover"
             />
