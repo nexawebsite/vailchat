@@ -226,13 +226,13 @@ export default function ChatList() {
             
             if (chat.isGroup) {
               displayName = chat.groupName;
-              avatar = chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`;
+              avatar = chat.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`;
             } else {
               const otherUser = chat.participants.find((p: any) => p._id !== user?.id);
               if (otherUser) {
                 const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser.phoneNumber);
                 displayName = savedContact ? savedContact.name : otherUser.phoneNumber;
-                avatar = otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`;
+                avatar = otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`;
               }
             }
 
@@ -299,7 +299,7 @@ export default function ChatList() {
                       onClick={() => handleAccessChat(u._id)}
                       className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-[#27272a] transition-all"
                     >
-                      <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                      <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
                       <div className="flex-1">
                         <p className="font-medium text-sm">{displayName}</p>
                         <p className="text-xs text-gray-500">~ {u.username}</p>
@@ -352,7 +352,7 @@ export default function ChatList() {
                           onClick={() => toggleParticipant(u._id)}
                           className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-green-500 bg-green-500/10' : 'border-transparent hover:bg-gray-50 dark:hover:bg-[#27272a]'}`}
                         >
-                          <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                          <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
                           <div className="flex-1">
                             <p className="font-medium text-sm">{displayName}</p>
                             <p className="text-xs text-gray-500">~ {u.username}</p>

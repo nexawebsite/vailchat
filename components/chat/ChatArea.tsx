@@ -329,13 +329,13 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
     
     if (isGroup) {
       name = chatInfo.groupName;
-      avatar = chatInfo.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+      avatar = chatInfo.groupAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`;
     } else {
       const otherUser = chatInfo.participants.find((p: any) => p._id !== user?.id);
       if (otherUser) {
         const savedContact = user?.contacts?.find((c: any) => c.phoneNumber === otherUser.phoneNumber);
         name = savedContact ? savedContact.name : otherUser.phoneNumber;
-        avatar = otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+        avatar = otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`;
       }
     }
   }
@@ -524,7 +524,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                   return (
                     <div key={p._id} className="flex justify-between items-center group cursor-pointer hover:bg-gray-100 dark:hover:bg-[#202c33] p-2 rounded-lg transition-colors">
                       <div className="flex items-center gap-3">
-                        <img src={p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`} className="w-10 h-10 rounded-full" />
+                        <img src={p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`} className="w-10 h-10 rounded-full" />
                         <div>
                           <p className="font-medium text-sm">{displayName}</p>
                           {isUserAdmin && <p className="text-[10px] text-green-500 border border-green-500 rounded px-1 w-fit mt-0.5">Group Admin</p>}
