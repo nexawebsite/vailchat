@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Chat, Message, User } from "@/lib/types";
-import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck, Square, Trash2 } from "lucide-react";
+import { Phone, Video, MoreVertical, Smile, Paperclip, Mic, Send, X, ShieldAlert, UserMinus, UserPlus, Image as ImageIcon, Check, CheckCheck, Square, Trash2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { useCall } from "@/lib/CallContext";
@@ -348,6 +348,12 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
         onClick={() => isGroup && setIsGroupInfoOpen(true)}
       >
         <div className="flex items-center gap-4">
+          <button 
+            onClick={(e) => { e.stopPropagation(); router.push('/chat'); }} 
+            className="md:hidden p-2 -ml-2 mr-1 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded-full transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <img src={avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
           <div>
             <h2 className="font-bold">{name}</h2>

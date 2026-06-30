@@ -27,9 +27,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <CallProvider>
-      <div className="flex h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex flex-col-reverse md:flex-row h-[100dvh] bg-background text-foreground overflow-hidden">
         <SidebarNavigation />
-        <main className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex overflow-hidden relative">
           {children}
         </main>
       </div>
