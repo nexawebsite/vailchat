@@ -257,7 +257,7 @@ export default function ChatList() {
                         {(!chat.lastMessage.status || chat.lastMessage.status === 'read') && <CheckCheck className="w-3 h-3 text-blue-500" />}
                       </span>
                     )}
-                    <span className="truncate">{subText}</span>
+                    <span className="truncate notranslate" translate="no">{subText}</span>
                   </p>
                 </div>
               </Link>

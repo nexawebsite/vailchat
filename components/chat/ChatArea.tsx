@@ -402,11 +402,11 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
                   <audio src={msg.content} controls className="w-full mb-2" />
                 )}
                 {msg.type === 'text' && (
-                  <p className="text-sm">{msg.content}</p>
+                  <p className="text-sm notranslate" translate="no">{msg.content}</p>
                 )}
                 
                 {/* Fallback for old messages without type */}
-                {!msg.type && <p className="text-sm">{msg.content}</p>}
+                {!msg.type && <p className="text-sm notranslate" translate="no">{msg.content}</p>}
                 
                 <div className={`flex items-center gap-1 mt-1 opacity-70 ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <p className="text-[10px]">{msg.timestamp}</p>
