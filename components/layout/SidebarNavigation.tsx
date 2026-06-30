@@ -42,7 +42,7 @@ export default function SidebarNavigation() {
       <div className="mt-auto cursor-pointer hover:opacity-80 transition-opacity">
         <Link href="/settings" className="block relative">
           <img
-            src={user?.avatar || "https://i.pravatar.cc/150"}
+            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || user?.phoneNumber || "User")}&background=10b981&color=fff`}
             alt="Profile"
             className="w-12 h-12 rounded-full border-2 border-border object-cover"
           />

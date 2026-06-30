@@ -220,8 +220,8 @@ export default function ChatList() {
         ) : (
           filteredChats.map((chat) => {
             const isActive = pathname === `/chat/${chat._id}`;
-            let avatar = "https://i.pravatar.cc/150";
             let displayName = "Unknown";
+            let avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`;
             let subText = chat.lastMessage?.content || "Anza kuchat...";
             
             if (chat.isGroup) {

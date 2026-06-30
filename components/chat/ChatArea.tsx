@@ -319,7 +319,7 @@ export default function ChatArea({ chatId }: ChatAreaProps) {
   };
 
   let name = "Loading...";
-  let avatar = "https://i.pravatar.cc/150";
+  let avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`;
   let isGroup = false;
   let isAdmin = false;
 

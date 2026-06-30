@@ -42,6 +42,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
 
     const handleCallIncoming = (data: any) => {
       setReceivingCall(true);
+      setCallEnded(false);
       setCaller(data.from);
       setCallerName(data.name);
       setCallerSignal(data.signal);
