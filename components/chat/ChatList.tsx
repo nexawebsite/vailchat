@@ -60,6 +60,13 @@ export default function ChatList() {
   }, [user]);
 
   useEffect(() => {
+    if (pathname.startsWith('/chat/')) {
+      const activeChatId = pathname.split('/chat/')[1];
+      setChats(prev => prev.map(c => c._id === activeChatId ? { ...c, unreadCount: 0 } : c));
+    }
+  }, [pathname]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleChatAdded = (chat: any) => {
@@ -71,11 +78,38 @@ export default function ChatList() {
       });
     };
 
+    const handleMessageUpdate = (msg: any) => {
+      setChats(prev => {
+        const chatIndex = prev.findIndex(c => c._id === msg.chatId);
+        if (chatIndex > -1) {
+          const chat = { ...prev[chatIndex] };
+          chat.lastMessage = msg;
+          
+          const isViewingChat = window.location.pathname === `/chat/${chat._id}`;
+          const isFromMe = msg.senderId === user?.id || msg.senderId?._id === user?.id;
+          
+          if (!isFromMe && !isViewingChat) {
+             chat.unreadCount = (chat.unreadCount || 0) + 1;
+          }
+          
+          const newChats = [...prev];
+          newChats.splice(chatIndex, 1);
+          return [chat, ...newChats];
+        }
+        return prev;
+      });
+    };
+
     socket.on('chat_added', handleChatAdded);
+    socket.on('receive_message', handleMessageUpdate);
+    socket.on('message_sent', handleMessageUpdate);
+
     return () => {
       socket.off('chat_added', handleChatAdded);
+      socket.off('receive_message', handleMessageUpdate);
+      socket.off('message_sent', handleMessageUpdate);
     };
-  }, [socket]);
+  }, [socket, user]);
 
   const toggleParticipant = (id: string) => {
     setSelectedParticipants(prev => 
@@ -248,6 +282,11 @@ export default function ChatList() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="font-semibold text-sm truncate">{displayName}</h3>
+                    {chat.unreadCount > 0 && (
+                      <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 shrink-0">
+                        {chat.unreadCount}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 truncate flex items-center gap-1">
                     {chat.lastMessage && chat.lastMessage.senderId === user?.id && (
