@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const Chat = require('../models/Chat');
 
 module.exports = (io) => {
   // Store connected users. Map: userId -> socketId
@@ -35,6 +36,9 @@ module.exports = (io) => {
           type
         });
         await newMessage.save();
+
+        // Update the chat's lastMessage reference
+        await Chat.findByIdAndUpdate(chatId, { lastMessage: newMessage._id });
 
         const fullMessage = await Message.findById(newMessage._id).populate("senderId", "username avatar phoneNumber");
 
