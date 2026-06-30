@@ -40,6 +40,13 @@ export default function CallModal({
   callType
 }: CallModalProps) {
   
+  // Attach stream to the local video element once it renders
+  useEffect(() => {
+    if (userVideoRef.current && stream) {
+      userVideoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   // If we are neither calling nor receiving, don't show the modal
   if (!isReceivingCall && !isCaller && !callAccepted) return null;
   if (callEnded) return null;

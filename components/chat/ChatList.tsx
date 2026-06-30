@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Users as UsersIcon, X, Check, MessageCirclePlus } from "lucide-react";
+import { Search, Users as UsersIcon, X, Check, CheckCheck, MessageCirclePlus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -249,8 +249,15 @@ export default function ChatList() {
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="font-semibold text-sm truncate">{displayName}</h3>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">
-                    {subText}
+                  <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                    {chat.lastMessage && chat.lastMessage.senderId === user?.id && (
+                      <span className="inline-flex items-center">
+                        {chat.lastMessage.status === 'sent' && <Check className="w-3 h-3 text-gray-500" />}
+                        {chat.lastMessage.status === 'delivered' && <CheckCheck className="w-3 h-3 text-gray-500" />}
+                        {(!chat.lastMessage.status || chat.lastMessage.status === 'read') && <CheckCheck className="w-3 h-3 text-blue-500" />}
+                      </span>
+                    )}
+                    <span className="truncate">{subText}</span>
                   </p>
                 </div>
               </Link>
