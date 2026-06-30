@@ -256,7 +256,14 @@ export default function ChatList() {
             const isActive = pathname === `/chat/${chat._id}`;
             let displayName = "Unknown";
             let avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=10b981&color=fff`;
-            let subText = chat.lastMessage?.content || "Anza kuchat...";
+            
+            let subText = "";
+            if (chat.lastMessage) {
+              if (chat.lastMessage.type === 'image') subText = "📷 Picha";
+              else if (chat.lastMessage.type === 'video') subText = "🎥 Video";
+              else if (chat.lastMessage.type === 'audio') subText = "🎵 Sauti";
+              else subText = chat.lastMessage.content || "";
+            }
             
             if (chat.isGroup) {
               displayName = chat.groupName;
